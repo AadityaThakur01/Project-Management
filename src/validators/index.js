@@ -38,4 +38,30 @@ const userLoginValidators = () => {
       .isLowercase(),
   ];
 };
-export { userValidationUser, userLoginValidators };
+const userChangeCurrentPasswrodValidators = () => {
+  return [
+    body("oldPassword").notEmpty().withMessage("Old Password is required"),
+    body("newPassword").notEmpty().withMessage("New Password is required"),
+  ];
+};
+const userForgotPasswordValidators = () => {
+  return [
+    body("email")
+      .notEmpty()
+      .withMessage("Email is required")
+      .isEmail()
+      .withMessage("Email is Invalid"),
+  ];
+};
+const userResetForgotPasswordValidators = () => {
+  return [
+    body("newPassword").notEmpty().withMessage("New Password is required"),
+  ];
+};
+export {
+  userValidationUser,
+  userLoginValidators,
+  userChangeCurrentPasswrodValidators,
+  userForgotPasswordValidators,
+  userResetForgotPasswordValidators,
+};
