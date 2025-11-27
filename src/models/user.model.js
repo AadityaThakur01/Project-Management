@@ -81,13 +81,13 @@ userSchema.methods.generateAccessToken = function () {
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
   );
 };
-userSchema.methods.generateRefereshToken = function () {
+userSchema.methods.generateRefreshToken = function () {
   return jwt.sign(
     {
       _id: this._id,
     },
-    process.env.REFERESH_TOKEN_SECRET,
-    { expiresIn: REFERESH_TOKEN_EXPIRY },
+    process.env.REFRESH_TOKEN_SECRET,
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
   );
 };
 userSchema.methods.generateTemporaryToken = function () {

@@ -24,4 +24,18 @@ const userValidationUser = () => {
   ];
 };
 
-export { userValidationUser };
+const userLoginValidators = () => {
+  return [
+    body("email")
+      .notEmpty()
+      .withMessage("Email is required")
+      .isEmail()
+      .withMessage("Email is invalid"),
+    body("password")
+      .trim()
+      .notEmpty()
+      .withMessage("Password is required")
+      .isLowercase(),
+  ];
+};
+export { userValidationUser, userLoginValidators };

@@ -8,7 +8,7 @@ const generateAccessAndRefreshToken = async (userId) => {
   try {
     const user = await User.findById(userId);
     const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefereshToken();
+    const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
@@ -57,7 +57,7 @@ const registerUser = asyncHandler(async (req, res) => {
     ),
   });
   const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry,",
+    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
   );
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong while registering the user");
@@ -70,4 +70,53 @@ const registerUser = asyncHandler(async (req, res) => {
   );
 });
 
-export { registerUser };
+const login = asyncHandler(async (req, res) => {
+  const { username, password, email } = req.body;
+
+  if (!email) {
+    throw new ApiError(400, "Email is required");
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(400, "User does not existed");
+  }
+
+  const isPasswordVerified = await user.isPasswordCorrect(password);
+
+  if (!isPasswordVerified) {
+    throw new ApiError(400, "Invalid Credentials");
+  }
+
+  // Pass user._id to generateAccessAndRefreshToken
+  const { refreshToken, accessToken } = await generateAccessAndRefreshToken(
+    user._id,
+  );
+
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        "User logged in successfully",
+      ),
+    );
+});
+export { registerUser, login };
