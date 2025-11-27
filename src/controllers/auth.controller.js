@@ -3,6 +3,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { emailVerificationMailgenContent, sendEmail } from "../utils/mail.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -195,11 +196,8 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
     throw new ApiError(409, "Email is already Verified");
   }
 
-  const {
-    hashedToken,
-    unHashedToken,
-    tokenExpiry,
-  } = user.generateTemporaryToken(); // generating hashedToken, unHashedToken, tokenExpiry
+  const { hashedToken, unHashedToken, tokenExpiry } =
+    user.generateTemporaryToken(); // generating hashedToken, unHashedToken, tokenExpiry
 
   user.emailVerificationToken = hashedToken; // adding to the database
   user.emailVerificationExpiry = tokenExpiry;
@@ -219,5 +217,62 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, "Mail has been sent to your email ID"));
 });
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken; // takes the refreshToken from cookies or from body
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized Access"); // checking for the refreshtoken is there or not
+  }
+
+  try {
+    const decodeToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+    ); // trying to decode the refreshtoken
+    const user = await User.findById(decodeToken?._id);
+
+    if (!user) {
+      throw new ApiError(401, "Invalid Refresh Token");
+    }
+
+    if (incomingRefreshToken !== user?.refreshToken)
+      // checking the incomingRefreshToken is same as in the user's refreshToken
+      throw new ApiError(401, "Refresh Token is Expired"); // it also be in the database
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      await generateAccessAndRefreshToken(user._id);
+
+    user.refreshToken = newRefreshToken; // saving the new refreshToken in the database
+    await user.save();
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options) // creating cookies
+      .cookie("refreshToken", refreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, refreshToken: newRefreshToken },
+          "Access Token Refreshed",
+        ),
+      );
+  } catch (error) {
+    throw new ApiError(401, "Invalid Refresh Token");
+  }
+});
 // const getCurrentUser = asyncHandler(async(req,res) => {})
-export { registerUser, login, logout, getCurrentUser, verifyEmail };
+export {
+  registerUser,
+  login,
+  logout,
+  getCurrentUser,
+  verifyEmail,
+  resendEmailVerification,
+  refreshAccessToken,
+};
